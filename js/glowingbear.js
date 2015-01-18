@@ -577,6 +577,7 @@ weechat.controller('WeechatCtrl', ['$rootScope', '$scope', '$store', '$timeout',
 
         var target = event.target.parentNode.parentNode.parentNode;
         target.setAttribute('data-state', target.getAttribute('data-state') === 'active' ? 'collapsed' : 'active');
+        target.getElementsByClassName('panel-collapse')[0].classList.toggle("in");
 
         // Hide all other siblings
         var siblings = target.parentNode.children;
@@ -584,6 +585,7 @@ weechat.controller('WeechatCtrl', ['$rootScope', '$scope', '$store', '$timeout',
             var child = siblings[childId];
             if (child.nodeType === 1 && child !== target) {
                 child.setAttribute('data-state', 'collapsed');
+                child.getElementsByClassName('panel-collapse')[0].classList.remove("in");
             }
         }
     };
