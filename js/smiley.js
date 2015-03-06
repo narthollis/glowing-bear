@@ -2,23 +2,22 @@
 "use strict";
 
 var weechat = angular.module('weechat');
+var smiley = angular.module('smiley', []);
 
 function fastSplice(str, index, count, add) {
     return str.slice(0, index) + add + str.slice(index + count);
 }
 
-/**
- * @constructor
- */
-var AhoCorasick = function() {
-    this._root = {};
-};
+smiley.service('$smiley', ['smileyThemes', '$http', function(smileyThemes, $http) {
 
-AhoCorasick.prototype = {
+    var AhoCorasick = function() {
+        this._root = {};
+    };
+
     /**
      * @param {string} word
      */
-    add: function add(word) {
+    AhoCorasick.prototype.add = function add(word) {
         var i, char, node = this._root, uword;
         if( !(typeof word === 'string' || word instanceof String) ) {
             throw new TypeError("word is not string");
@@ -31,8 +30,8 @@ AhoCorasick.prototype = {
             node = node[char] || (node[char] = {_parent: node});
         }
         node._result = word;
-    },
-    compile: function compile() {
+    };
+    AhoCorasick.prototype.compile = function compile() {
         var queue = [], entry, node, child, fall;
         // JavaScript scoping fails, so we should declare in obvious places
         var i, keys, key;
@@ -44,7 +43,7 @@ AhoCorasick.prototype = {
             keys = Object.keys(node);
             for( i = 0 ; i < keys.length; i++ ) {
                 key = keys[i];
-                if(key.length <= 1) {
+                if(key.length > 1) {
                     continue;
                 }
                 queue.push(node[key]);
@@ -78,8 +77,9 @@ AhoCorasick.prototype = {
                 node._fall = this._root;
             }
         }
-    },
-    search: function search(text) {
+    };
+
+    AhoCorasick.prototype.search = function search(text) {
         var result = [], state = this._root, node, i, self=this;
         if( !(typeof text === 'string' || text instanceof String) ) {
             throw new TypeError("word is not string");
@@ -109,61 +109,122 @@ AhoCorasick.prototype = {
             step(text.charAt(i), i);
         }
         return result;
-    }
-};
+    };
 
+    var _matchWhitespace = /\s+/;
 
-weechat.filter('smily', ['$http', function($http) {
-    var path = "assets/smiley/sagf_spring_2015/";
-    var AC = new AhoCorasick();
-    var stringToImage = {};
-    var splitOnWhiteSpace = /\s+/;
+    /**
+     * Defines the Theme object
+     */
+    var Theme = function(path) {
+        this.path = path;
+        this.AC = new AhoCorasick();
+        this.stringToImage = {};
 
-    $http.get(path + 'theme').success(function(data) {
-        var started = false, line, i, j, image;
-        var lines = data.split(/\r\n|\r|\n/);
-        for(i=0;i<lines.length;i++) {
-            line = lines[i].trim();
+        this.name = "";
+        this.description = "";
+        this.icon = "";
+        this.author = "";
 
-            if (line[0] != '#') {
+        var self = this;
+
+        $http.get(this.path + 'theme').success(function(data) {
+            var started = false, line, i, j, image;
+            var lines = data.split(/\r\n|\r|\n/);
+            for(i=0;i<lines.length;i++) {
+                line = lines[i].trim();
+                
+                if (line[0] === '#') {
+                    continue;
+                }
+                
                 if (!started) {
-                    if (line[0] == '[') {
+                    if (line[0] === '[') {
                         started = true;
+                    } else {
+                        line = line.split('=',1);
+                        line[0] = line[0].toUpperCase();
+                        if (line[0] === 'NAME') {
+                            self.name = line[1];
+                        } else if (line[0] === 'DESCRIPTION') {
+                            self.description = line[1];
+                        } else if (line[0] === 'ICON') {
+                            self.icon = line[1];
+                        } else if (line[0] === 'AUTHOR') {
+                            self.author = line[1];
+                        }
                     }
                 } else {
-                    if (line[0] != '[') {
-                        if (line[0] == '!') {
-                            line = line.substring(1,line.length).trim();
-                        }
-
-                        line = line.split(splitOnWhiteSpace);
-                        image = line.shift();
-                        for (j=0; j<line.length; j++) {
-                            AC.add(line[j]);
-                            stringToImage[line[j]] = image;
-                        }
-                    } 
+                    if (line[0] === '[') {
+                        continue;
+                    }
+                    
+                    if (line[0] === '!') {
+                        line = line.substring(1,line.length).trim();
+                    }
+                    line = line.split(_matchWhitespace);
+                    image = line.shift();
+                    for (j=0; j<line.length; j++) {
+                        self.AC.add(line[j]);
+                        self.stringToImage[line[j]] = image;
+                    }
                 }
             }
-        }
+            self.AC.compile();
+        });
+    };
 
-        AC.compile();
-    });
-
-    return function(text) {
+    Theme.prototype.substitute = function(message) {
         var i, img, index;
-        var matches = AC.search(text);
+        var matches = this.AC.search(message);
         for(i=matches.length-1; i>=0; i--) {
             img = '<img style="background:white" ' +
-                  ' alt="' + matches[i][0] + '"' +
-                  ' title="' + matches[i][0] + '"' +
-                  ' src="' + path + stringToImage[matches[i][0]] + '" />';
-
+                ' alt="' + matches[i][0] + '"' +
+                ' title="' + matches[i][0] + '"' +
+                ' src="' + this.path + this.stringToImage[matches[i][0]] + '" />';
+            
             index = matches[i][1] - (matches[i][0].length - 1);
-            text = fastSplice(text, index,  matches[i][0].length, img);
+            message = fastSplice(message, index,  matches[i][0].length, img);
+        }
+        
+        return message;
+    };
+
+    /**
+     * Defines the Theme Manager Object
+     */
+    var ThemeManagerObject = function() {
+        this.themes = [];
+    };
+
+    ThemeManagerObject.prototype.registerThemes = function(smileyThemes) {
+        var i;
+        for (i=0; i<smileyThemes.length; i++) {
+            this.themes.push(new Theme(smileyThemes[i]));
+        }
+    };
+
+    ThemeManagerObject.prototype.substitute = function(message) {
+        var i;
+        for(i=0; i<this.themes.length; i++) {
+            message = this.themes[i].substitute(message);
         }
 
-        return text;
+        return message;
+    };
+
+    this.SmileyThemeManager = new ThemeManagerObject();
+    this.SmileyThemeManager.registerThemes(smileyThemes.themes);
+    
+}]);
+
+smiley.factory('smileyThemes', function() {
+    return {themes: ["assets/smiley/sagf_spring_2015/"]};
+});
+
+weechat.filter('smiley', ['$smiley', function($smiley) {
+    return function(message) {
+        return $smiley.SmileyThemeManager.substitute(message);
     };
 }]);
 
