@@ -177,13 +177,24 @@ smiley.service('$smiley', ['smileyThemes', '$http', function(smileyThemes, $http
     Theme.prototype.substitute = function(message) {
         var i, img, index;
         var matches = this.AC.search(message);
+
+        var previous = message.length;
+
         for(i=matches.length-1; i>=0; i--) {
+            index = matches[i][1] - (matches[i][0].length - 1);
+
+            // Avoid overlapping matches, by check if the end of our match is
+            //   after the start of our previous match
+            if (matches[i][1] >= previous) {
+                continue;
+            }
+            previous = index;
+
             img = '<img style="background:white" ' +
                 ' alt="' + matches[i][0] + '"' +
                 ' title="' + matches[i][0] + '"' +
                 ' src="' + this.path + this.stringToImage[matches[i][0]] + '" />';
             
-            index = matches[i][1] - (matches[i][0].length - 1);
             message = fastSplice(message, index,  matches[i][0].length, img);
         }
         
