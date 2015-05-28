@@ -12,8 +12,8 @@ weechat.config(['$compileProvider', function ($compileProvider) {
     }
 }]);
 
-weechat.controller('WeechatCtrl', ['$rootScope', '$scope', '$store', '$timeout', '$log', 'models', 'connection', 'notifications', 'utils', 'settings',
-    function ($rootScope, $scope, $store, $timeout, $log, models, connection, notifications, utils, settings) {
+weechat.controller('WeechatCtrl', ['$rootScope', '$scope', '$store', '$timeout', '$log', 'models', 'connection', 'notifications', 'utils', 'settings', '$smiley',
+    function ($rootScope, $scope, $store, $timeout, $log, models, connection, notifications, utils, settings, $smiley) {
 
     $scope.command = '';
     $scope.themes = ['dark', 'light'];
@@ -39,6 +39,8 @@ weechat.controller('WeechatCtrl', ['$rootScope', '$scope', '$store', '$timeout',
         'enableJSEmoji': false
     });
     $scope.settings = settings;
+    
+    $scope.smiley = $smiley.SmileyThemeManager;
 
     // From: http://stackoverflow.com/a/18539624 by StackOverflow user "plantian"
     $rootScope.countWatchers = function () {
