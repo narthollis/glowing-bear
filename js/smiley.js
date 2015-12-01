@@ -230,7 +230,7 @@ smiley.service('$smiley', ['smileyThemes', '$http', function(smileyThemes, $http
 }]);
 
 smiley.factory('smileyThemes', function() {
-    return {themes: ["assets/smiley/sagf_spring_2015/"]};
+    return {themes: ["assets/smiley/pidgin/"]};
 });
 
 weechat.filter('smiley', ['$smiley', function($smiley) {
