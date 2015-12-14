@@ -77,7 +77,7 @@ var UrlPlugin = function(name, urlCallback) {
             }
         };
 
-        var nsfwRegexp = new RegExp('nsfw', 'i');
+        var nsfwRegexp = new RegExp('nsfw|:nws:', 'i');
 
         /*
          * Iterates through all the registered plugins
